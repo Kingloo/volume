@@ -26,8 +26,11 @@ fn main() -> Result<()> {
 			}
 			set_volume(desired_volume_scalar, &audio_endpoint_volume)?;
 		} else {
-			println!("not a float: {:?}", args[1]);
-			return Ok(());
+			if args[1].as_str() == "inc" {
+				increment_volume(&audio_endpoint_volume)?;
+			} else if args[1].as_str() == "dec" {
+				decrement_volume(&audio_endpoint_volume)?;
+			}
 		}
 	}
 
@@ -50,6 +53,20 @@ unsafe fn set_volume(desired_volume_scalar: f32, audio_endpoint_volume: &IAudioE
 	audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar, std::ptr::null())?;
 	println!("set master volume to {:.0}%", convert_float_to_percent(desired_volume_scalar));
 	Ok(())
+}
+
+unsafe fn increment_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
+	let current_volume: f32 = get_volume(audio_endpoint_volume)?;
+	let new_volume: f32 = current_volume + 0.01;
+	set_volume(new_volume, audio_endpoint_volume)?;
+	Ok(new_volume)
+}
+
+unsafe fn decrement_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
+	let current_volume: f32 = get_volume(audio_endpoint_volume)?;
+	let new_volume: f32 = current_volume - 0.01;
+	set_volume(new_volume, audio_endpoint_volume)?;
+	Ok(new_volume)
 }
 
 fn print_volume(volume: f32) {
