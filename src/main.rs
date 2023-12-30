@@ -1,15 +1,14 @@
 #![allow(unused_imports)]
 
 use windows::core::Result;
-use windows::Win32::Media::Audio::{IMMDeviceEnumerator, MMDeviceEnumerator, IMMDevice, eRender, eConsole};
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
-use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, COINIT_MULTITHREADED, CLSCTX_INPROC_SERVER};
+use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceEnumerator, MMDeviceEnumerator};
+use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
 
 fn main() -> Result<()> {
 	let args: Vec<String> = std::env::args().collect();
 
-	unsafe
-	{
+	unsafe {
 		CoInitializeEx(None, COINIT_MULTITHREADED)?;
 
 		let audio_endpoint_volume: IAudioEndpointVolume = create_audio_endpoint_volume()?;
@@ -25,12 +24,10 @@ fn main() -> Result<()> {
 				return Ok(());
 			}
 			set_volume(desired_volume_scalar, &audio_endpoint_volume)?;
-		} else {
-			if args[1].as_str() == "inc" {
-				increment_volume(&audio_endpoint_volume)?;
-			} else if args[1].as_str() == "dec" {
-				decrement_volume(&audio_endpoint_volume)?;
-			}
+		} else if args[1].as_str() == "inc" {
+			increment_volume(&audio_endpoint_volume)?;
+		} else if args[1].as_str() == "dec" {
+			decrement_volume(&audio_endpoint_volume)?;
 		}
 	}
 
