@@ -45,13 +45,11 @@ unsafe fn create_audio_endpoint_volume() -> Result<IAudioEndpointVolume> {
 }
 
 unsafe fn get_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
-	let current_volume: f32 = audio_endpoint_volume.GetMasterVolumeLevelScalar()?;
-	Ok(current_volume)
+	audio_endpoint_volume.GetMasterVolumeLevelScalar()
 }
 
 unsafe fn set_volume(desired_volume_scalar: f32, audio_endpoint_volume: &IAudioEndpointVolume) -> Result<()> {
-	audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar, std::ptr::null())?;
-	Ok(())
+	audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar, std::ptr::null())
 }
 
 fn convert_float_to_percent(volume: f32) -> f32 {
