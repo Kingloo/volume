@@ -14,4 +14,4 @@ Written in Rust using [windows-rs](https://github.com/microsoft/windows-rs).
 
 `volume.exe 0.15`
 
-from 0.0 to 1.0
+from 0.0 to 1.0 as 0% to 100%
