@@ -3,11 +3,11 @@ use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::{eConsole, eRender, IMMDevice, IMMDeviceEnumerator, MMDeviceEnumerator};
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
 
-fn main() -> Result<()> {
+fn main() -> windows::core::Result<()> {
 	let args: Vec<String> = std::env::args().collect();
 
 	unsafe {
-		CoInitializeEx(None, COINIT_MULTITHREADED)?;
+		CoInitializeEx(None, COINIT_MULTITHREADED).ok()?;
 
 		let audio_endpoint_volume: IAudioEndpointVolume = create_audio_endpoint_volume()?;
 

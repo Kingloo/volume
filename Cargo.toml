@@ -1,10 +1,10 @@
 [package]
 name = "volume"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies.windows]
-version = "0.52"
+version = "0.54"
 features = [
 	"Win32_Foundation",
 	"Win32_Media_Audio",
