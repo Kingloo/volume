@@ -32,7 +32,7 @@ fn main() -> windows::core::Result<()> {
 			0 => panic!("should be impossible!"),
 			1 => print_current_volumes(&device_enumerator),
 			3 => adjust_volume(&args, &device_enumerator),
-			_other => usage()
+			_other => usage(),
 		}
 	}
 }
