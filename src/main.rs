@@ -26,12 +26,16 @@ fn main() -> windows::core::Result<()> {
 
 		let device_enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_INPROC_SERVER)?;
 
-		if args.len() < 2 {
+		if args.len() == 1 {
 			let default_output_device = get_default_output_device(&device_enumerator)?;
 			let default_input_device = get_default_input_device(&device_enumerator)?;
 			print_current_volume(&default_output_device)?;
 			print_current_volume(&default_input_device)?;
 			return Ok(());
+		}
+
+		if args.len() < 3 {
+			return usage();
 		}
 
 		let device_to_adjust: IMMDevice = match args[1].as_str() {
@@ -65,7 +69,7 @@ fn main() -> windows::core::Result<()> {
 
 		set_volume(desired_volume_scalar, &audio_endpoint_to_adjust)?;
 
-		println!("{} -> {:.0}%", device_friendly_name, convert_float_to_percent(desired_volume_scalar));
+		println!("{} → {:.0}%", device_friendly_name, convert_float_to_percent(desired_volume_scalar));
 	}
 
 	Ok(())
