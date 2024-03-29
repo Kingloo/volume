@@ -1,17 +1,23 @@
 # volume
 
-Console programme to control the master volume level in Windows.
+Console programme to adjust the default output and input volumes on Windows.
 
 Written in Rust using [windows-rs](https://github.com/microsoft/windows-rs).
 
-## get current volume
-`volume.exe`
+## Usage
 
-## increment or decrement volume by 1%
-`volume.exe {inc|dec}`
+`volume.exe {out|in} {inc|dec|0.NN}`
 
-## set volume
+## Examples
 
-`volume.exe 0.15`
+`volume.exe`  
+show current volumes
 
-from 0.0 to 1.0 as 0% to 100%
+`volume.exe out inc`  
+increment output volume by 1%
+
+`volume.exe in dec`  
+decrement input volume by 1%
+
+`volume.exe out 0.50`  
+set default output volume to 50%.
