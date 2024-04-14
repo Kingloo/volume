@@ -9,7 +9,7 @@ use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPRO
 
 fn usage() -> Result<()> {
 	let usage = String::from(
-		"volume.exe {{out|in}} {{inc|dec|0.NN}}
+		"volume.exe {out|in} {inc|dec|0.NN}
 	\tout = change default output device
 	\tin = change default input device
 	\tinc = increment by 0.01
