@@ -47,8 +47,8 @@ unsafe fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> Resu
 
 unsafe fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
 	let device_to_adjust: IMMDevice = match args[1].as_str() {
-		"out" => get_default_output_device(&device_enumerator)?,
-		"in" => get_default_input_device(&device_enumerator)?,
+		"out" => get_default_output_device(device_enumerator)?,
+		"in" => get_default_input_device(device_enumerator)?,
 		_other => return usage(),
 	};
 
