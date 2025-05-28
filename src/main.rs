@@ -37,7 +37,7 @@ fn main() -> windows::core::Result<()> {
 	}
 }
 
-unsafe fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
+fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
 	let default_output_device = get_default_output_device(device_enumerator)?;
 	let default_input_device = get_default_input_device(device_enumerator)?;
 	print_current_volume(&default_output_device)?;
@@ -45,7 +45,7 @@ unsafe fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> Resu
 	Ok(())
 }
 
-unsafe fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
+fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
 	let device_to_adjust: IMMDevice = match args[1].as_str() {
 		"out" => get_default_output_device(device_enumerator)?,
 		"in" => get_default_input_device(device_enumerator)?,
@@ -82,7 +82,7 @@ unsafe fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator
 	Ok(())
 }
 
-unsafe fn print_current_volume(device: &IMMDevice) -> Result<()> {
+fn print_current_volume(device: &IMMDevice) -> Result<()> {
 	let friendly_name: String = get_device_friendly_name(device)?;
 	let audio_endpoint: IAudioEndpointVolume = get_audio_endpoint(device)?;
 	let current_volume: f32 = get_volume(&audio_endpoint)?;
@@ -90,35 +90,35 @@ unsafe fn print_current_volume(device: &IMMDevice) -> Result<()> {
 	Ok(())
 }
 
-unsafe fn get_default_output_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
-	let default_device: IMMDevice = device_enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
+fn get_default_output_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
+	let default_device: IMMDevice = unsafe { device_enumerator.GetDefaultAudioEndpoint(eRender, eConsole)? };
 	Ok(default_device)
 }
 
-unsafe fn get_default_input_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
-	let input_devices: IMMDeviceCollection = device_enumerator.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE)?;
-	let default_input_device = input_devices.Item(0)?;
+fn get_default_input_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
+	let input_devices: IMMDeviceCollection = unsafe { device_enumerator.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE)? };
+	let default_input_device = unsafe { input_devices.Item(0)? };
 	Ok(default_input_device)
 }
 
-unsafe fn get_audio_endpoint(device: &IMMDevice) -> Result<IAudioEndpointVolume> {
-	let audio_endpoint_volume: IAudioEndpointVolume = device.Activate(CLSCTX_INPROC_SERVER, None)?;
+fn get_audio_endpoint(device: &IMMDevice) -> Result<IAudioEndpointVolume> {
+	let audio_endpoint_volume: IAudioEndpointVolume = unsafe { device.Activate(CLSCTX_INPROC_SERVER, None)? };
 	Ok(audio_endpoint_volume)
 }
 
-unsafe fn get_device_friendly_name(device: &IMMDevice) -> Result<String> {
-	let prop_store = device.OpenPropertyStore(STGM_READ)?;
-	let friendly_name_prop = prop_store.GetValue(&PKEY_Device_FriendlyName)?;
-	let friendly_name = PropVariantToStringAlloc(&friendly_name_prop)?;
-	Ok(friendly_name.to_string()?)
+fn get_device_friendly_name(device: &IMMDevice) -> Result<String> {
+	let prop_store = unsafe { device.OpenPropertyStore(STGM_READ)? };
+	let friendly_name_prop = unsafe { prop_store.GetValue(&PKEY_Device_FriendlyName)? };
+	let friendly_name = unsafe { PropVariantToStringAlloc(&friendly_name_prop)? };
+	Ok(unsafe { friendly_name.to_string()? })
 }
 
-unsafe fn get_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
-	audio_endpoint_volume.GetMasterVolumeLevelScalar()
+fn get_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
+	unsafe { audio_endpoint_volume.GetMasterVolumeLevelScalar() }
 }
 
-unsafe fn set_volume(desired_volume_scalar: f32, audio_endpoint_volume: &IAudioEndpointVolume) -> Result<()> {
-	audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar, std::ptr::null())
+fn set_volume(desired_volume_scalar: f32, audio_endpoint_volume: &IAudioEndpointVolume) -> Result<()> {
+	unsafe { audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar, std::ptr::null()) }
 }
 
 fn convert_float_to_percent(volume: f32) -> f32 {
