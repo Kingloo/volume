@@ -1,11 +1,11 @@
-use windows::core::Result;
 use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::{
-	eCapture, eConsole, eRender, IMMDevice, IMMDeviceCollection, IMMDeviceEnumerator, MMDeviceEnumerator, DEVICE_STATE_ACTIVE,
+	DEVICE_STATE_ACTIVE, IMMDevice, IMMDeviceCollection, IMMDeviceEnumerator, MMDeviceEnumerator, eCapture, eConsole, eRender,
 };
 use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
-use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, STGM_READ};
+use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, STGM_READ};
+use windows::core::Result;
 
 fn usage() -> Result<()> {
 	let usage = String::from(
@@ -25,15 +25,15 @@ fn main() -> windows::core::Result<()> {
 
 	unsafe {
 		CoInitializeEx(None, COINIT_MULTITHREADED).ok()?;
+	}
 
-		let device_enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_INPROC_SERVER)?;
+	let device_enumerator: IMMDeviceEnumerator = unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_INPROC_SERVER)? };
 
-		match args.len() {
-			0 => panic!("should be impossible!"),
-			1 => print_current_volumes(&device_enumerator),
-			3 => adjust_volume(&args, &device_enumerator),
-			_other => usage(),
-		}
+	match args.len() {
+		0 => panic!("should be impossible!"),
+		1 => print_current_volumes(&device_enumerator),
+		3 => adjust_volume(&args, &device_enumerator),
+		_other => usage(),
 	}
 }
 
