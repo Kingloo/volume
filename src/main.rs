@@ -7,6 +7,9 @@ use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
 use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, STGM_READ};
 use windows::core::Result;
 
+mod volume;
+use crate::volume::Volume;
+
 fn usage() -> Result<()> {
 	let usage = String::from(
 		"volume.exe {out|in} {inc|dec|0.NN}
@@ -16,7 +19,7 @@ fn usage() -> Result<()> {
 	\tdec = decrement by 0.01
 	\t0.NN = value from 0.00 to 1.00 as 0% to 100%",
 	);
-	println!("{}", usage);
+	eprintln!("{}", usage);
 	Ok(())
 }
 
@@ -56,28 +59,27 @@ fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> Re
 
 	let audio_endpoint_to_adjust: IAudioEndpointVolume = get_audio_endpoint(&device_to_adjust)?;
 
-	let current_volume_scalar: f32 = get_volume(&audio_endpoint_to_adjust)?;
+	let current_volume: f32 = get_volume(&audio_endpoint_to_adjust)?;
 
-	let desired_volume_scalar: f32 = match args[2].as_str() {
-		"inc" => current_volume_scalar + 0.01,
-		"dec" => current_volume_scalar - 0.01,
+	let desired_volume: Option<Volume> = match args[2].as_str() {
+		"inc" => Volume::new(current_volume + 0.01),
+		"dec" => Volume::new(current_volume - 0.01),
 		other => {
 			if let Ok(value) = other.parse::<f32>() {
-				value
+				Volume::new(value)
 			} else {
+				eprintln!("invalid value: {}", other);
 				return usage();
 			}
 		}
 	};
 
-	if !(0.0..=1.0).contains(&desired_volume_scalar) {
-		eprintln!("failed: value must be between 0.0 and 1.0");
-		return Ok(());
+	if let Some(v) = desired_volume {
+		set_volume(v, &audio_endpoint_to_adjust)?;
+		println!("{} → {:.0}%", device_friendly_name, v.as_percent());
+	} else {
+		return usage();
 	}
-
-	set_volume(desired_volume_scalar, &audio_endpoint_to_adjust)?;
-
-	println!("{} → {:.0}%", device_friendly_name, convert_float_to_percent(desired_volume_scalar));
 
 	Ok(())
 }
@@ -86,13 +88,12 @@ fn print_current_volume(device: &IMMDevice) -> Result<()> {
 	let friendly_name: String = get_device_friendly_name(device)?;
 	let audio_endpoint: IAudioEndpointVolume = get_audio_endpoint(device)?;
 	let current_volume: f32 = get_volume(&audio_endpoint)?;
-	println!("{}\t{:.0}%", friendly_name, convert_float_to_percent(current_volume));
+	println!("{}\t{:.0}%", friendly_name, convert_f32_to_percent(current_volume));
 	Ok(())
 }
 
 fn get_default_output_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
-	let default_device: IMMDevice = unsafe { device_enumerator.GetDefaultAudioEndpoint(eRender, eConsole)? };
-	Ok(default_device)
+	unsafe { device_enumerator.GetDefaultAudioEndpoint(eRender, eConsole) }
 }
 
 fn get_default_input_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
@@ -102,8 +103,7 @@ fn get_default_input_device(device_enumerator: &IMMDeviceEnumerator) -> Result<I
 }
 
 fn get_audio_endpoint(device: &IMMDevice) -> Result<IAudioEndpointVolume> {
-	let audio_endpoint_volume: IAudioEndpointVolume = unsafe { device.Activate(CLSCTX_INPROC_SERVER, None)? };
-	Ok(audio_endpoint_volume)
+	unsafe { device.Activate(CLSCTX_INPROC_SERVER, None) }
 }
 
 fn get_device_friendly_name(device: &IMMDevice) -> Result<String> {
@@ -117,10 +117,10 @@ fn get_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
 	unsafe { audio_endpoint_volume.GetMasterVolumeLevelScalar() }
 }
 
-fn set_volume(desired_volume_scalar: f32, audio_endpoint_volume: &IAudioEndpointVolume) -> Result<()> {
-	unsafe { audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar, std::ptr::null()) }
+fn set_volume(desired_volume_scalar: Volume, audio_endpoint_volume: &IAudioEndpointVolume) -> Result<()> {
+	unsafe { audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar.into(), std::ptr::null()) }
 }
 
-fn convert_float_to_percent(volume: f32) -> f32 {
-	volume * 100f32
+fn convert_f32_to_percent(volume: f32) -> f32 {
+	volume * 100.0f32
 }
