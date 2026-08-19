@@ -41,16 +41,15 @@ fn main() -> windows::core::Result<()> {
 
 	let device_enumerator: IMMDeviceEnumerator = unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_INPROC_SERVER)? };
 
-	let result = match args.len() {
+	if let Err(error) = match args.len() {
 		0 => panic!("should be impossible!"),
 		1 => print_current_volumes(&device_enumerator),
 		3 => adjust_volume(&args, &device_enumerator),
 		_other => usage(),
-	};
-
-	match result {
-		Ok(_) => Ok(()),
-		Err(error) => print_windows_error(&error),
+	} {
+		print_windows_error(&error)
+	} else {
+		Ok(())
 	}
 }
 
