@@ -5,12 +5,14 @@ use windows::Win32::Media::Audio::{
 };
 use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
 use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, STGM_READ};
-use windows::core::Result;
 
+mod constants;
 mod volume;
-use crate::volume::Volume;
 
-fn usage() -> Result<()> {
+use crate::constants::{GET_MASTER_VOLUME_SCALAR_FAILED, OUT_OF_RANGE, PARSE_FAILED};
+use crate::volume::{Volume, VolumeError};
+
+fn usage() -> windows::core::Result<()> {
 	let usage = String::from(
 		"volume.exe {out|in} {inc|dec|0.NN}
 	\tout = change default output device
@@ -23,6 +25,13 @@ fn usage() -> Result<()> {
 	Ok(())
 }
 
+fn print_windows_error(error: &windows::core::Error) -> windows::core::Result<()> {
+	let code = error.code();
+	let message = error.message();
+	eprintln!("HRESULT: {code}, message: '{message}'");
+	Ok(())
+}
+
 fn main() -> windows::core::Result<()> {
 	let args: Vec<String> = std::env::args().collect();
 
@@ -32,15 +41,20 @@ fn main() -> windows::core::Result<()> {
 
 	let device_enumerator: IMMDeviceEnumerator = unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_INPROC_SERVER)? };
 
-	match args.len() {
+	let result = match args.len() {
 		0 => panic!("should be impossible!"),
 		1 => print_current_volumes(&device_enumerator),
 		3 => adjust_volume(&args, &device_enumerator),
 		_other => usage(),
+	};
+
+	match result {
+		Ok(_) => Ok(()),
+		Err(error) => print_windows_error(&error),
 	}
 }
 
-fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
+fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> windows::core::Result<()> {
 	let default_output_device = get_default_output_device(device_enumerator)?;
 	let default_input_device = get_default_input_device(device_enumerator)?;
 	print_current_volume(&default_output_device)?;
@@ -48,7 +62,7 @@ fn print_current_volumes(device_enumerator: &IMMDeviceEnumerator) -> Result<()> 
 	Ok(())
 }
 
-fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> Result<()> {
+fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> windows::core::Result<()> {
 	let device_to_adjust: IMMDevice = match args[1].as_str() {
 		"out" => get_default_output_device(device_enumerator)?,
 		"in" => get_default_input_device(device_enumerator)?,
@@ -59,68 +73,80 @@ fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> Re
 
 	let audio_endpoint_to_adjust: IAudioEndpointVolume = get_audio_endpoint(&device_to_adjust)?;
 
-	let current_volume: f32 = get_volume(&audio_endpoint_to_adjust)?;
+	let current_volume: Volume = get_volume(&audio_endpoint_to_adjust)?;
 
-	let desired_volume: Option<Volume> = match args[2].as_str() {
-		"inc" => Volume::new(current_volume + 0.01),
-		"dec" => Volume::new(current_volume - 0.01),
+	let desired_volume: Result<Volume, VolumeError> = match args[2].as_str() {
+		"inc" => current_volume.add(0.01),
+		"dec" => current_volume.sub(0.01),
 		other => {
 			if let Ok(value) = other.parse::<f32>() {
 				Volume::new(value)
 			} else {
-				eprintln!("invalid value: {}", other);
-				return usage();
+				Err(VolumeError::ParseFailed(other.to_string()))
 			}
 		}
 	};
 
-	if let Some(v) = desired_volume {
-		set_volume(v, &audio_endpoint_to_adjust)?;
-		println!("{} → {:.0}%", device_friendly_name, v.as_percent());
-	} else {
-		return usage();
+	match desired_volume {
+		Ok(volume) => {
+			set_volume(volume, &audio_endpoint_to_adjust)?;
+			println!("{} → {:.0}%", device_friendly_name, volume.as_percent());
+			Ok(())
+		}
+		Err(e) => match e {
+			VolumeError::OutOfRange => Err(windows::core::Error::new(windows::core::HRESULT(OUT_OF_RANGE), "value out of range")),
+			VolumeError::ParseFailed(value) => Err(windows::core::Error::new(
+				windows::core::HRESULT(PARSE_FAILED),
+				format!("failed to parse: '{value}'"),
+			)),
+		},
 	}
-
-	Ok(())
 }
 
-fn print_current_volume(device: &IMMDevice) -> Result<()> {
+fn print_current_volume(device: &IMMDevice) -> windows::core::Result<()> {
 	let friendly_name: String = get_device_friendly_name(device)?;
 	let audio_endpoint: IAudioEndpointVolume = get_audio_endpoint(device)?;
-	let current_volume: f32 = get_volume(&audio_endpoint)?;
-	println!("{}\t{:.0}%", friendly_name, convert_f32_to_percent(current_volume));
+	let current_volume: Volume = get_volume(&audio_endpoint)?;
+	println!("{}\t{:.0}%", friendly_name, current_volume.as_percent());
 	Ok(())
 }
 
-fn get_default_output_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
+fn get_default_output_device(device_enumerator: &IMMDeviceEnumerator) -> windows::core::Result<IMMDevice> {
 	unsafe { device_enumerator.GetDefaultAudioEndpoint(eRender, eConsole) }
 }
 
-fn get_default_input_device(device_enumerator: &IMMDeviceEnumerator) -> Result<IMMDevice> {
+fn get_default_input_device(device_enumerator: &IMMDeviceEnumerator) -> windows::core::Result<IMMDevice> {
 	let input_devices: IMMDeviceCollection = unsafe { device_enumerator.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE)? };
 	let default_input_device = unsafe { input_devices.Item(0)? };
 	Ok(default_input_device)
 }
 
-fn get_audio_endpoint(device: &IMMDevice) -> Result<IAudioEndpointVolume> {
+fn get_audio_endpoint(device: &IMMDevice) -> windows::core::Result<IAudioEndpointVolume> {
 	unsafe { device.Activate(CLSCTX_INPROC_SERVER, None) }
 }
 
-fn get_device_friendly_name(device: &IMMDevice) -> Result<String> {
+fn get_device_friendly_name(device: &IMMDevice) -> windows::core::Result<String> {
 	let prop_store = unsafe { device.OpenPropertyStore(STGM_READ)? };
 	let friendly_name_prop = unsafe { prop_store.GetValue(&PKEY_Device_FriendlyName)? };
 	let friendly_name = unsafe { PropVariantToStringAlloc(&friendly_name_prop)? };
-	Ok(unsafe { friendly_name.to_string()? })
+	let name_as_string = unsafe { friendly_name.to_string() };
+	match name_as_string {
+		Ok(name) => Ok(name),
+		Err(e) => windows::core::Result::Err(e.into()),
+	}
 }
 
-fn get_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> Result<f32> {
-	unsafe { audio_endpoint_volume.GetMasterVolumeLevelScalar() }
+fn get_volume(audio_endpoint_volume: &IAudioEndpointVolume) -> windows::core::Result<Volume> {
+	let raw_volume = unsafe { audio_endpoint_volume.GetMasterVolumeLevelScalar()? };
+	match raw_volume.try_into() {
+		Ok(volume) => Ok(volume),
+		Err(_) => Err(windows::core::Error::new(
+			windows::core::HRESULT(GET_MASTER_VOLUME_SCALAR_FAILED),
+			"failed to get master volume level scalar",
+		)),
+	}
 }
 
-fn set_volume(desired_volume_scalar: Volume, audio_endpoint_volume: &IAudioEndpointVolume) -> Result<()> {
+fn set_volume(desired_volume_scalar: Volume, audio_endpoint_volume: &IAudioEndpointVolume) -> windows::core::Result<()> {
 	unsafe { audio_endpoint_volume.SetMasterVolumeLevelScalar(desired_volume_scalar.into(), std::ptr::null()) }
-}
-
-fn convert_f32_to_percent(volume: f32) -> f32 {
-	volume * 100.0f32
 }

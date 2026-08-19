@@ -1,0 +1,3 @@
+pub const OUT_OF_RANGE: i32 = 0x8001_0001u32 as i32;
+pub const PARSE_FAILED: i32 = 0x8001_0002u32 as i32;
+pub const GET_MASTER_VOLUME_SCALAR_FAILED: i32 = 0x8001_0003u32 as i32;
