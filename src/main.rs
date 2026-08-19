@@ -25,14 +25,13 @@ fn usage() -> windows::core::Result<()> {
 	Ok(())
 }
 
-fn print_windows_error(error: &windows::core::Error) -> windows::core::Result<()> {
+fn print_windows_error(error: &windows::core::Error) {
 	let code = error.code();
 	let message = error.message();
-	eprintln!("HRESULT: {code}, message: '{message}'");
-	Ok(())
+	eprintln!("HRESULT: {code}, message: '{message}'")
 }
 
-fn main() -> windows::core::Result<()> {
+fn main() -> windows::core::Result<std::process::ExitCode> {
 	let args: Vec<String> = std::env::args().collect();
 
 	unsafe {
@@ -47,9 +46,10 @@ fn main() -> windows::core::Result<()> {
 		3 => adjust_volume(&args, &device_enumerator),
 		_other => usage(),
 	} {
-		print_windows_error(&error)
+		print_windows_error(&error);
+		Err(error)
 	} else {
-		Ok(())
+		Ok(std::process::ExitCode::SUCCESS)
 	}
 }
 
