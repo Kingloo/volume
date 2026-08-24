@@ -93,7 +93,7 @@ fn adjust_volume(args: &[String], device_enumerator: &IMMDeviceEnumerator) -> wi
 			Ok(())
 		}
 		Err(e) => match e {
-			VolumeError::OutOfRange => Err(windows::core::Error::new(windows::core::HRESULT(OUT_OF_RANGE), "value out of range")),
+			VolumeError::OutOfRange(value) => Err(windows::core::Error::new(windows::core::HRESULT(OUT_OF_RANGE), format!("out of range: {value}"))),
 			VolumeError::ParseFailed(value) => Err(windows::core::Error::new(
 				windows::core::HRESULT(PARSE_FAILED),
 				format!("failed to parse: '{value}'"),

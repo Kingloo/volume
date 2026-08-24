@@ -3,7 +3,7 @@ pub struct Volume(f32);
 
 #[derive(Debug, Clone)]
 pub enum VolumeError {
-	OutOfRange,
+	OutOfRange(f32),
 	ParseFailed(String),
 }
 
@@ -12,7 +12,7 @@ impl Volume {
 		if (0.0..=1.0).contains(&n) {
 			Ok(Volume(n))
 		} else {
-			Err(VolumeError::OutOfRange)
+			Err(VolumeError::OutOfRange(n))
 		}
 	}
 
@@ -21,11 +21,11 @@ impl Volume {
 	}
 
 	pub fn add(self: &Volume, rhs: f32) -> Result<Self, VolumeError> {
-		Volume::new(self.0 + rhs)
+		Volume::new((self.0 + rhs).clamp(0.0f32, 1.0f32))
 	}
 
 	pub fn sub(self: &Volume, rhs: f32) -> Result<Self, VolumeError> {
-		Volume::new(self.0 - rhs)
+		Volume::new((self.0 - rhs).clamp(0.0f32, 1.0f32))
 	}
 }
 
@@ -42,7 +42,7 @@ impl TryFrom<f32> for Volume {
 		if (0.0..=1.0).contains(&value) {
 			Ok(Volume(value))
 		} else {
-			Err(VolumeError::OutOfRange)
+			Err(VolumeError::OutOfRange(value))
 		}
 	}
 }
